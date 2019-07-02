@@ -33,6 +33,13 @@ import javax.crypto.spec.SecretKeySpec;
 import static org.onlab.packet.LLDPOrganizationalTLV.OUI_LENGTH;
 import static org.onlab.packet.LLDPOrganizationalTLV.SUBTYPE_LENGTH;
 import static org.slf4j.LoggerFactory.getLogger;
+import java.util.Map;
+import java.lang.*;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+
 
 /**
  *  ONOS LLDP containing organizational TLV for ONOS device discovery.
@@ -69,6 +76,10 @@ public class ONOSLLDP extends LLDP {
     private static final byte PORT_DESC_TLV_TYPE = 4;
 
     private final byte[] ttlValue = new byte[] {0, 0x78};
+
+    // Arraylist for packet loss of LLDP packets
+    public static Map<String, ArrayList<Long>> linkPacketLossLLDP = new ConcurrentHashMap<String, ArrayList<Long>>();
+
 
     // Only needs to be accessed from LinkProbeFactory.
     public ONOSLLDP(byte... subtype) {
@@ -349,6 +360,14 @@ public class ONOSLLDP extends LLDP {
         }
         return null;
     }
+    public static void removeElement(String id, long e){
+        linkPacketLossLLDP.get(id).remove(e);
+
+    }
+    public static ArrayList<Long> getArray(String id){
+        return linkPacketLossLLDP.get(id);
+        
+    }
 
     /**
      * Given an ethernet packet, determines if this is an LLDP from
@@ -421,6 +440,7 @@ public class ONOSLLDP extends LLDP {
         probe.setDevice(deviceId);
         probe.setChassisId(chassisId);
 
+
         if (secret != null) {
             /* Secure Mode */
             long ts = System.currentTimeMillis();
@@ -431,6 +451,20 @@ public class ONOSLLDP extends LLDP {
             }
             probe.setSig(sig);
             sig = null;
+            
+            //Add timestamp for calculating the packtlos of LLDP
+            String linkID = deviceId.toString()+"-"+String.valueOf(portNum);
+            if(!linkPacketLossLLDP.containsKey(linkID)){
+
+                linkPacketLossLLDP.put(linkID, new ArrayList<Long>());
+                linkPacketLossLLDP.get(linkID).add(ts);
+
+
+            }else{
+                linkPacketLossLLDP.get(linkID).add(ts);
+            }
+            
+
         }
         return probe;
     }
